@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LumiBoard — RGB Matrix Game Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --lime:#b8ff35;--dark:#0d0f0b;--dark2:#141710;--dark3:#1c2118;
+  --mid:#2a3025;--border:#2e3829;--text:#e8f0e0;--muted:#6b7a60;--white:#f5f9f0;
+  --blue:#35b8ff;--red:#ff3564;--orange:#ff8c00;--purple:#a855f7;
+  --fh:'Syne',sans-serif;--fm:'JetBrains Mono',monospace;--r:16px;--rs:8px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--dark);color:var(--text);font-family:var(--fh);font-size:16px;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--dark)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:68px;background:rgba(13,15,11,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.nav-logo{font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--white);text-decoration:none}
+.nav-logo span{color:var(--lime)}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;transition:color .2s}
+.nav-links a:hover{color:var(--lime)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.status-pill{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--dark3);font-family:var(--fm);font-size:12px;color:var(--muted);transition:all .4s}
+.status-pill.online {border-color:rgba(184,255,53,.4);color:var(--lime);background:rgba(184,255,53,.08)}
+.status-pill.offline{border-color:rgba(255,68,85,.3);color:#ff6677;background:rgba(255,68,85,.07)}
+.status-pill.checking{border-color:rgba(255,140,0,.3);color:var(--orange);background:rgba(255,140,0,.07)}
+.s-pip{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.status-pill.online .s-pip{animation:blink 2s infinite}
+.status-pill.checking .s-pip{animation:blink .7s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.settings-btn{width:36px;height:36px;border-radius:8px;background:var(--dark3);border:1px solid var(--border);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .15s}
+.settings-btn:hover{border-color:var(--lime);color:var(--lime)}
+
+/* ── DRAWER ── */
+.drawer-bg{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0);pointer-events:none;transition:background .25s}
+.drawer-bg.open{background:rgba(0,0,0,.65);pointer-events:all}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:380px;z-index:401;background:var(--dark2);border-left:1px solid var(--border);padding:32px;display:flex;flex-direction:column;gap:28px;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);overflow-y:auto}
+.drawer-bg.open .drawer{transform:translateX(0)}
+.drawer-top{display:flex;align-items:center;justify-content:space-between}
+.drawer-title{font-size:20px;font-weight:800;color:var(--white);letter-spacing:-.5px}
+.drawer-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:color .15s;line-height:1}
+.drawer-close:hover{color:var(--white)}
+.d-label{font-family:var(--fm);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:block}
+.ip-row{display:flex;gap:8px}
+.ip-input{flex:1;padding:12px 14px;background:var(--dark3);border:1px solid var(--border);border-radius:var(--rs);color:var(--white);font-family:var(--fm);font-size:15px;outline:none;transition:border-color .2s}
+.ip-input:focus{border-color:var(--lime)}
+.ip-input::placeholder{color:var(--muted)}
+.ip-save{padding:12px 20px;background:var(--lime);color:var(--dark);font-family:var(--fh);font-size:14px;font-weight:700;border:none;border-radius:var(--rs);cursor:pointer;transition:all .15s;white-space:nowrap}
+.ip-save:hover{background:var(--white)}
+.d-status{font-family:var(--fm);font-size:12px;min-height:16px;letter-spacing:.5px;margin-top:4px}
+.d-status.ok{color:var(--lime)}.d-status.err{color:#ff6677}.d-status.checking{color:var(--orange)}
+.saved-ip-box{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--dark3);border:1px solid var(--border);border-radius:var(--rs)}
+.saved-ip-val{font-family:var(--fm);font-size:16px;color:var(--lime);font-weight:600}
+.saved-ip-clear{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:color .15s;line-height:1}
+.saved-ip-clear:hover{color:#ff6677}
+.hint-box{font-size:13px;color:var(--muted);line-height:1.7;padding:16px;background:var(--dark3);border-radius:var(--rs);border-left:3px solid var(--border)}
+.hint-box strong{color:var(--text)}
+.hint-box code{font-family:var(--fm);color:var(--lime);font-size:12px;background:rgba(184,255,53,.08);padding:1px 5px;border-radius:3px}
+
+/* ── BANNER ── */
+.banner{display:none;align-items:center;gap:12px;padding:11px 80px;font-size:14px;border-bottom:1px solid}
+.banner.offline{display:flex;background:rgba(255,68,85,.06);border-color:rgba(255,68,85,.2);color:#ff8899}
+.banner.noip{display:flex;background:rgba(255,255,255,.03);border-color:var(--border);color:var(--muted)}
+.banner.checking{display:flex;background:rgba(255,140,0,.06);border-color:rgba(255,140,0,.2);color:var(--orange)}
+.b-spinner{width:13px;height:13px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.b-action{margin-left:auto;color:inherit;font-weight:700;cursor:pointer;text-decoration:underline;white-space:nowrap;background:none;border:none;font-family:var(--fh);font-size:14px}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;padding-top:68px}
+.hero-left{display:flex;flex-direction:column;justify-content:center;padding:80px 64px 80px 80px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-family:var(--fm);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--lime);margin-bottom:28px}
+.eyebrow::before{content:'';width:24px;height:1px;background:var(--lime)}
+.hero-title{font-size:clamp(48px,6vw,86px);font-weight:800;line-height:1.0;letter-spacing:-3px;color:var(--white);margin-bottom:28px}
+.hero-title .ac{color:var(--lime)}
+.hero-desc{font-size:17px;color:var(--muted);max-width:420px;line-height:1.75;margin-bottom:48px}
+.hero-actions{display:flex;gap:14px;flex-wrap:wrap}
+.btn-p{display:inline-flex;align-items:center;gap:8px;padding:15px 30px;background:var(--lime);color:var(--dark);font-family:var(--fh);font-size:15px;font-weight:700;border-radius:var(--rs);border:none;cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-p:hover{background:var(--white);transform:translateY(-2px);box-shadow:0 12px 40px rgba(184,255,53,.3)}
+.btn-s{display:inline-flex;align-items:center;gap:8px;padding:15px 30px;background:transparent;color:var(--text);font-family:var(--fh);font-size:15px;font-weight:600;border-radius:var(--rs);border:1px solid var(--border);cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-s:hover{border-color:var(--lime);color:var(--lime)}
+.hero-right{background:var(--dark2);border-left:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;position:relative;overflow:hidden}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:.35}
+.hero-glow{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(184,255,53,.09) 0%,transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(184,255,53,.05) 0%,transparent 50%)}
+.matrix-device{position:relative;z-index:1;background:#070905;border:1px solid var(--border);border-radius:20px;padding:28px;box-shadow:0 0 0 1px rgba(184,255,53,.12),0 40px 100px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04)}
+.dev-head{display:flex;align-items:center;gap:7px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.dd{width:10px;height:10px;border-radius:50%}.dd-r{background:#ff5f57}.dd-y{background:#febc2e}.dd-g{background:#28c840}
+.dev-name{margin-left:auto;font-family:var(--fm);font-size:10px;color:var(--muted);letter-spacing:2px}
+#matrixCanvas{display:block;border-radius:6px;image-rendering:pixelated}
+.dev-stats{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.dst{text-align:center;padding:0 12px;border-right:1px solid var(--border)}.dst:last-child{border-right:none}
+.dst-v{display:block;font-family:var(--fm);font-size:20px;font-weight:600;color:var(--lime)}
+.dst-l{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+
+/* ── GAMES ── */
+.section{padding:100px 80px}
+.sh{margin-bottom:60px;display:flex;align-items:flex-end;justify-content:space-between}
+.s-eye{font-family:var(--fm);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--lime);margin-bottom:10px}
+.s-title{font-size:clamp(32px,4vw,52px);font-weight:800;letter-spacing:-2px;color:var(--white);line-height:1.05}
+.sh-r{color:var(--muted);font-size:14px;max-width:240px;text-align:right;line-height:1.6}
+.games-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.game-card{background:var(--dark2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:border-color .25s,transform .25s,box-shadow .25s;display:flex;flex-direction:column}
+.game-card:hover:not(.locked){border-color:var(--lime);transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px rgba(184,255,53,.15)}
+.game-card.locked{cursor:not-allowed;filter:saturate(.25);opacity:.5}
+.card-vis{height:160px;display:flex;align-items:center;justify-content:center;position:relative}
+.cv-snake {background:linear-gradient(135deg,#091309,#030803)}
+.cv-pong  {background:linear-gradient(135deg,#090a14,#03040c)}
+.cv-tetris{background:linear-gradient(135deg,#140908,#0a0302)}
+.cv-madn  {background:linear-gradient(135deg,#14100a,#0a0703)}
+.cv-dino  {background:linear-gradient(135deg,#0a0a0a,#1a1a0a)}
+.cv-maze  {background:linear-gradient(135deg,#080a14,#03060f)}
+.card-canvas-wrap{background:#060806;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.card-canvas-wrap canvas{display:block;image-rendering:pixelated;border-radius:4px}
+.card-tag{position:absolute;top:14px;right:14px;font-family:var(--fm);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:5px 10px;border-radius:4px;font-weight:600}
+.t-snake {background:rgba(184,255,53,.15);color:var(--lime);  border:1px solid rgba(184,255,53,.3)}
+.t-pong  {background:rgba(53,184,255,.15);color:var(--blue);  border:1px solid rgba(53,184,255,.3)}
+.t-tetris{background:rgba(255,53,100,.15);color:var(--red);   border:1px solid rgba(255,53,100,.3)}
+.t-madn  {background:rgba(168,85,247,.15); color:var(--purple);border:1px solid rgba(168,85,247,.3)}
+.t-dino  {background:rgba(255,140,0,.15);  color:var(--orange);border:1px solid rgba(255,140,0,.3)}
+.t-maze  {background:rgba(53,184,255,.15); color:var(--blue);  border:1px solid rgba(53,184,255,.3)}
+.card-body{padding:24px;flex:1;display:flex;flex-direction:column;gap:10px}
+.card-title{font-size:22px;font-weight:800;color:var(--white);letter-spacing:-.5px}
+.card-desc{font-size:14px;color:var(--muted);line-height:1.6;flex:1}
+.card-foot{display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid var(--border);margin-top:4px}
+.card-keys{font-family:var(--fm);font-size:11px;color:var(--muted)}
+.card-play{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--lime);color:var(--dark);font-size:12px;font-weight:700;border-radius:6px;border:none;cursor:pointer;transition:all .15s}
+.card-play:hover{background:var(--white);transform:scale(1.04)}
+.card-play.blue  {background:var(--blue)}
+.card-play.red   {background:var(--red);color:#fff}
+.card-play.purple{background:var(--purple);color:#fff}
+.game-card.locked .card-play{background:var(--border);color:var(--muted);cursor:not-allowed;pointer-events:none}
+
+/* ── PLAY SECTION ── */
+#playSection{display:none;padding:100px 80px;background:var(--dark2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+#playSection.visible{display:block}
+.play-layout{display:grid;grid-template-columns:1fr 380px;gap:60px;align-items:start}
+.play-crumb{font-family:var(--fm);font-size:12px;color:var(--muted);margin-bottom:20px;cursor:pointer;transition:color .2s;display:inline-flex;align-items:center;gap:6px}
+.play-crumb:hover{color:var(--lime)}
+.play-title{font-size:clamp(38px,5vw,62px);font-weight:800;letter-spacing:-2px;color:var(--white);margin-bottom:12px}
+.play-desc{font-size:15px;color:var(--muted);line-height:1.7;max-width:440px;margin-bottom:32px}
+.score-box{display:inline-flex;flex-direction:column;background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:18px 28px;margin-bottom:32px}
+.score-lbl{font-family:var(--fm);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.score-num{font-family:var(--fm);font-size:52px;font-weight:600;color:var(--lime);line-height:1}
+.ctrl-list-title{font-family:var(--fm);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.ctrl-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.key{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;background:var(--dark3);border:1px solid var(--border);border-bottom:3px solid var(--mid);border-radius:6px;font-family:var(--fm);font-size:12px;font-weight:600;color:var(--text)}
+.key-lbl{font-size:14px;color:var(--muted)}
+.play-btns{display:flex;gap:12px;margin-top:32px}
+.ctrl-panel{background:var(--dark3);border:1px solid var(--border);border-radius:var(--r);padding:32px;display:flex;flex-direction:column;align-items:center;gap:22px;position:sticky;top:88px}
+.ctrl-panel-lbl{font-family:var(--fm);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);align-self:flex-start}
+.dpad{display:grid;grid-template-areas:". u ." "l . r" ". d .";grid-template-columns:68px 68px 68px;grid-template-rows:68px 18px 68px;gap:5px}
+.db{background:var(--dark2);border:1px solid var(--border);border-bottom:3px solid var(--mid);border-radius:10px;color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;user-select:none;-webkit-tap-highlight-color:transparent}
+.db:hover{border-color:var(--lime);color:var(--lime);background:rgba(184,255,53,.06)}
+.db.pressed,.db:active{background:var(--lime);color:var(--dark);border-color:var(--lime);border-bottom-width:1px;transform:translateY(2px)}
+.db-u{grid-area:u}.db-l{grid-area:l}.db-r{grid-area:r}.db-d{grid-area:d}
+.extra-btns{display:flex;flex-direction:column;gap:10px;width:100%}
+.xbtn{width:100%;padding:13px;background:var(--dark2);border:1px solid var(--border);border-bottom:3px solid var(--mid);border-radius:8px;color:var(--text);font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.xbtn:hover{border-color:var(--lime);color:var(--lime)}
+.xbtn:active{transform:translateY(2px);border-bottom-width:1px}
+.xbtn.danger{border-color:rgba(255,80,80,.35);color:#ff6060}
+.xbtn.danger:hover{border-color:#ff6060;background:rgba(255,80,80,.08)}
+
+/* ── MADN PANEL ── */
+.madn-panel{display:flex;flex-direction:column;gap:20px;width:100%}
+.madn-status-box{padding:20px;background:var(--dark2);border:1px solid var(--border);border-radius:var(--rs);text-align:center}
+.madn-spieler{font-family:var(--fm);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.madn-spieler-name{font-size:28px;font-weight:800;color:var(--white);letter-spacing:-1px}
+.madn-spieler-name.blau  {color:#3399ff}
+.madn-spieler-name.rot   {color:#ff4455}
+.madn-spieler-name.gruen {color:#44dd66}
+.madn-spieler-name.gelb  {color:#ffdd00}
+.madn-wurf-box{display:flex;align-items:center;justify-content:center;gap:16px;padding:16px;background:var(--dark3);border:1px solid var(--border);border-radius:var(--rs);margin-top:12px}
+.madn-wurf-label{font-family:var(--fm);font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.madn-wurf-zahl{font-family:var(--fm);font-size:48px;font-weight:600;color:var(--lime);line-height:1;min-width:48px;text-align:center}
+.madn-msg{font-family:var(--fm);font-size:12px;color:var(--muted);text-align:center;letter-spacing:1px;padding:10px}
+.madn-dice-btn{width:100%;padding:20px;background:var(--lime);color:var(--dark);font-family:var(--fh);font-size:18px;font-weight:800;border:none;border-radius:var(--rs);cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.madn-dice-btn:hover{background:var(--white);transform:translateY(-2px);box-shadow:0 8px 24px rgba(184,255,53,.4)}
+.madn-dice-btn:active{transform:translateY(0)}
+.madn-dice-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none}
+.madn-ende-box{padding:20px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:var(--rs);text-align:center}
+.madn-ende-title{font-size:22px;font-weight:800;color:var(--purple);margin-bottom:8px}
+.madn-ende-sub{font-size:14px;color:var(--muted)}
+.madn-figur-auswahl{display:none;flex-direction:column;gap:10px;width:100%}
+.madn-figur-auswahl.aktiv{display:flex}
+.madn-figur-auswahl-title{font-family:var(--fm);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);text-align:center}
+.madn-figur-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.madn-figur-btn{padding:14px 8px;border-radius:var(--rs);border:2px solid transparent;font-family:var(--fh);font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;opacity:.3;pointer-events:none}
+.madn-figur-btn.waehlbar{opacity:1;pointer-events:all;transform:none}
+.madn-figur-btn.waehlbar:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.madn-figur-btn.waehlbar:active{transform:translateY(0)}
+.mfb-blau {background:rgba(51,153,255,.15);color:#3399ff;border-color:rgba(51,153,255,.4)}
+.mfb-rot  {background:rgba(255,68,85,.15); color:#ff4455;border-color:rgba(255,68,85,.4)}
+.mfb-gruen{background:rgba(68,221,102,.15);color:#44dd66;border-color:rgba(68,221,102,.4)}
+.mfb-gelb {background:rgba(255,221,0,.15); color:#ffdd00;border-color:rgba(255,221,0,.4)}
+.madn-figur-btn.waehlbar.mfb-blau:hover {background:rgba(51,153,255,.3)}
+.madn-figur-btn.waehlbar.mfb-rot:hover  {background:rgba(255,68,85,.3)}
+.madn-figur-btn.waehlbar.mfb-gruen:hover{background:rgba(68,221,102,.3)}
+.madn-figur-btn.waehlbar.mfb-gelb:hover {background:rgba(255,221,0,.3)}
+.madn-farbe-item{padding:8px;border-radius:6px;text-align:center;font-family:var(--fm);font-size:10px;letter-spacing:1px;font-weight:600}
+.madn-farbe-blau  {background:rgba(51,153,255,.15);color:#3399ff;border:1px solid rgba(51,153,255,.3)}
+.madn-farbe-rot   {background:rgba(255,68,85,.15); color:#ff4455;border:1px solid rgba(255,68,85,.3)}
+.madn-farbe-gruen {background:rgba(68,221,102,.15);color:#44dd66;border:1px solid rgba(68,221,102,.3)}
+.madn-farbe-gelb  {background:rgba(255,221,0,.15); color:#ffdd00;border:1px solid rgba(255,221,0,.3)}
+
+/* ── HOW ── */
+.how-section{padding:100px 80px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:56px;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.step{background:var(--dark2);padding:34px 26px}
+.step-num{font-family:var(--fm);font-size:11px;letter-spacing:3px;color:var(--lime);margin-bottom:16px}
+.step-icon{font-size:32px;margin-bottom:12px;display:block}
+.step-title{font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px}
+.step-desc{font-size:14px;color:var(--muted);line-height:1.6}
+.step-desc code{font-family:var(--fm);color:var(--lime);font-size:12px}
+
+/* ── SPECS ── */
+.specs-section{padding:100px 80px;background:var(--dark2);border-top:1px solid var(--border)}
+.specs-layout{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.specs-table{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.spec-row{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--border)}
+.spec-row:last-child{border-bottom:none}
+.spec-row:hover{background:rgba(255,255,255,.02)}
+.spec-k{font-size:14px;color:var(--muted)}
+.spec-v{font-family:var(--fm);font-size:13px;color:var(--lime);font-weight:600}
+
+/* ── FOOTER ── */
+footer{padding:44px 80px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.footer-logo{font-size:18px;font-weight:800;color:var(--white)}
+.footer-logo span{color:var(--lime)}
+.footer-copy{font-family:var(--fm);font-size:12px;color:var(--muted)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--dark3);border:1px solid var(--lime);color:var(--lime);font-family:var(--fm);font-size:12px;padding:13px 22px;border-radius:8px;z-index:9999;letter-spacing:1px;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .3s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.warn{border-color:var(--orange);color:var(--orange)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){
+  .hero{grid-template-columns:1fr}.hero-right{min-height:420px;border-left:none;border-top:1px solid var(--border)}
+  .hero-left{padding:60px 40px}.games-grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr)}
+  .play-layout{grid-template-columns:1fr}.specs-layout{grid-template-columns:1fr;gap:48px}
+  .section,.how-section,.specs-section{padding:80px 40px}#playSection{padding:80px 40px}
+  nav{padding:0 24px}.banner{padding:11px 40px}
+  footer{padding:36px 40px;flex-direction:column;gap:12px;text-align:center}.drawer{width:320px}
+}
+@media(max-width:680px){
+  .nav-links{display:none}.hero-left{padding:40px 24px}.hero-title{font-size:42px}
+  .section,.how-section,.specs-section{padding:60px 24px}#playSection{padding:60px 24px}
+  .steps{grid-template-columns:1fr}footer{padding:32px 24px}
+  .banner{padding:11px 24px;flex-wrap:wrap}.drawer{width:100%}
+  .madn-farben{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ── DRAWER ── -->
+<div class="drawer-bg" id="drawerBg" onclick="if(event.target===this)closeDrawer()">
+  <div class="drawer">
+    <div class="drawer-top">
+      <div class="drawer-title">⚙ Einstellungen</div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="savedBlock" style="display:none">
+      <span class="d-label">Gespeicherte IP</span>
+      <div class="saved-ip-box">
+        <span class="saved-ip-val" id="savedIpVal">—</span>
+        <button class="saved-ip-clear" onclick="clearIP()" title="Löschen">✕</button>
+      </div>
+    </div>
+    <div>
+      <span class="d-label">IP-Adresse eingeben</span>
+      <div class="ip-row">
+        <input class="ip-input" id="ipInput" type="text" placeholder="192.168.1.100" autocomplete="off" spellcheck="false">
+        <button class="ip-save" onclick="saveAndConnect()">Verbinden</button>
+      </div>
+      <div class="d-status" id="dStatus"></div>
+    </div>
+    <div class="hint-box">
+      <strong>Wo finde ich die IP?</strong><br><br>
+      Das OLED-Display am LumiBoard zeigt die IP direkt beim Einschalten an.<br><br>
+      Ohne Display: Serial Monitor in VS Code öffnen.<br><br>
+      Beispiel: <code>192.168.1.100</code><br><br>
+      💡 Im Router eine <strong>feste IP</strong> vergeben — dann ändert sie sich nie.
+    </div>
+  </div>
+</div>
+
+<!-- ── MIXED CONTENT BANNER ── -->
+<div id="mixedContentBanner" style="display:none;background:rgba(255,140,0,.1);border-bottom:1px solid rgba(255,140,0,.3);padding:10px 24px;text-align:center;font-size:13px;color:var(--orange);font-family:var(--fm)">
+  ⚠ Auf dem Handy bitte <a id="httpLink" href="#" style="color:var(--lime);font-weight:700;text-decoration:underline">diese Seite über HTTP öffnen</a> — sonst kann der Browser den ESP32 nicht erreichen.
+</div>
+<script>
+if(location.protocol==='https:' && /Mobi|Android/i.test(navigator.userAgent)){
+  var b=document.getElementById('mixedContentBanner');
+  b.style.display='block';
+  document.getElementById('httpLink').href='http://'+location.host+location.pathname;
+}
+</script>
+
+<!-- ── NAV ── -->
+<nav>
+  <a class="nav-logo" href="#">Lumi<span>Board</span></a>
+  <ul class="nav-links">
+    <li><a href="#games">Games</a></li>
+    <li><a href="#playSection">Spielen</a></li>
+    <li><a href="#how">Anleitung</a></li>
+    <li><a href="#specs">Specs</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="status-pill checking" id="statusPill">
+      <div class="s-pip"></div>
+      <span id="statusTxt">Warte…</span>
+    </div>
+    <button class="settings-btn" onclick="openDrawer()" title="IP einstellen">⚙</button>
+  </div>
+</nav>
+
+<!-- ── BANNER ── -->
+<div style="padding-top:68px">
+  <div class="banner" id="banner">
+    <div class="b-spinner" id="bannerSpinner" style="display:none"></div>
+    <span id="bannerTxt"></span>
+    <button class="b-action" id="bannerAction" onclick="openDrawer()" style="display:none">IP eingeben →</button>
+  </div>
+</div>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="eyebrow">ESP32 · RGB Matrix · OLED · Web Control</div>
+    <h1 class="hero-title">Deine<br><span class="ac">8×8</span><br>Game&nbsp;Console</h1>
+    <p class="hero-desc">LumiBoard ist immer erreichbar. Schalte deinen ESP32 ein, lies die IP vom OLED ab und tipp sie einmal ein — danach verbindet sich alles automatisch.</p>
+    <div class="hero-actions">
+      <a class="btn-p" href="#games">Spiele ansehen</a>
+      <button class="btn-s" onclick="openDrawer()">⚙ IP eingeben</button>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-grid"></div>
+    <div class="hero-glow"></div>
+    <div class="matrix-device">
+      <div class="dev-head">
+        <div class="dd dd-r"></div><div class="dd dd-y"></div><div class="dd dd-g"></div>
+        <div class="dev-name">LUMIBOARD · LIVE</div>
+      </div>
+      <canvas id="matrixCanvas" width="200" height="200"></canvas>
+      <div class="dev-stats">
+        <div class="dst"><span class="dst-v">8×8</span><span class="dst-l">Matrix</span></div>
+        <div class="dst"><span class="dst-v" id="heroFps">—</span><span class="dst-l">FPS</span></div>
+        <div class="dst"><span class="dst-v">5</span><span class="dst-l">Games</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── GAMES ── -->
+<section class="section" id="games">
+  <div class="sh">
+    <div><div class="s-eye">Spielbibliothek</div><h2 class="s-title">Wähle dein<br>Game</h2></div>
+    <p class="sh-r">Alle Spiele laufen direkt auf dem ESP32.</p>
+  </div>
+  <div class="games-grid">
+
+    <!-- Snake -->
+    <div class="game-card locked" id="card-snake" onclick="launchGame('snake')">
+      <div class="card-vis cv-snake">
+        <div class="card-canvas-wrap"><canvas id="snakePreview" width="96" height="96"></canvas></div>
+        <div class="card-tag t-snake">Klassiker</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Snake</div>
+        <div class="card-desc">Steuere die Schlange, fresse das Futter und wachse — ohne dich selbst zu beißen.</div>
+        <div class="card-foot"><span class="card-keys">← ↑ → ↓</span>
+          <button class="card-play" onclick="event.stopPropagation();launchGame('snake')">▶ Spielen</button></div>
+      </div>
+    </div>
+
+    <!-- Pong -->
+    <div class="game-card locked" id="card-pong" onclick="launchGame('pong')">
+      <div class="card-vis cv-pong">
+        <div class="card-canvas-wrap"><canvas id="pongPreview" width="96" height="96"></canvas></div>
+        <div class="card-tag t-pong">1 Player</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Pong</div>
+        <div class="card-desc">Du gegen die KI. Lass den Ball nicht durch. Erster mit 5 Punkten gewinnt.</div>
+        <div class="card-foot"><span class="card-keys">W / S</span>
+          <button class="card-play blue" onclick="event.stopPropagation();launchGame('pong')">▶ Spielen</button></div>
+      </div>
+    </div>
+
+    <!-- Tetris -->
+    <div class="game-card locked" id="card-tetris" onclick="launchGame('tetris')">
+      <div class="card-vis cv-tetris">
+        <div class="card-canvas-wrap"><canvas id="tetrisPreview" width="96" height="96"></canvas></div>
+        <div class="card-tag t-tetris">Hot</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Tetris</div>
+        <div class="card-desc">Stapel die Blöcke, fülle Reihen. Wird schneller — du nicht.</div>
+        <div class="card-foot"><span class="card-keys">← → ↓ Space</span>
+          <button class="card-play red" onclick="event.stopPropagation();launchGame('tetris')">▶ Spielen</button></div>
+      </div>
+    </div>
+
+    <!-- MADN -->
+    <div class="game-card locked" id="card-madn" onclick="launchGame('madn')">
+      <div class="card-vis cv-madn">
+        <div class="card-canvas-wrap"><canvas id="madnPreview" width="96" height="96"></canvas></div>
+        <div class="card-tag t-madn">4 Player</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Mensch ärgere dich nicht</div>
+        <div class="card-desc">Klassisches Brettspiel auf der 8×8 Matrix. Würfeln per Taster oder Website — bis zu 4 Spieler.</div>
+        <div class="card-foot"><span class="card-keys">Taster / Website</span>
+          <button class="card-play purple" onclick="event.stopPropagation();launchGame('madn')">▶ Spielen</button></div>
+      </div>
+    </div>
+
+    <!-- Dino -->
+    <div class="game-card locked" id="card-dino" onclick="launchGame('dino')">
+      <div class="card-vis cv-dino">
+        <div class="card-canvas-wrap" style="padding:10px 14px">
+          <canvas id="dinoPreview" width="96" height="48"></canvas>
+        </div>
+        <div class="card-tag t-dino">OLED</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">🦕 Dino Run</div>
+        <div class="card-desc">Der Google-Chrome-Dino auf deinem OLED! Spring über Kakteen — läuft direkt auf dem Display. Steuerung per Taster oder Leertaste.</div>
+        <div class="card-foot"><span class="card-keys">Taster / Space</span>
+          <button class="card-play" style="background:var(--orange);color:var(--dark)" onclick="event.stopPropagation();launchGame('dino')">▶ Spielen</button></div>
+      </div>
+    </div>
+
+    <!-- Maze -->
+    <div class="game-card locked" id="card-maze" onclick="launchGame('maze')">
+      <div class="card-vis cv-maze">
+        <div class="card-canvas-wrap"><canvas id="mazePreview" width="96" height="96"></canvas></div>
+        <div class="card-tag t-maze">Puzzle</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">🌀 Maze</div>
+        <div class="card-desc">Finde den Ausgang im zufällig generierten Labyrinth auf der 8×8 Matrix. Steuere deinen Spieler mit den Pfeiltasten.</div>
+        <div class="card-foot"><span class="card-keys">← ↑ → ↓</span>
+          <button class="card-play blue" onclick="event.stopPropagation();launchGame('maze')">▶ Spielen</button></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── PLAY SECTION ── -->
+<div id="playSection">
+  <div class="play-layout">
+    <div>
+      <div class="play-crumb" onclick="stopGame()">← Spielbibliothek</div>
+      <h2 class="play-title" id="playTitle">Snake</h2>
+      <p class="play-desc" id="playDesc"></p>
+
+      <!-- Score (für Snake/Pong/Tetris) -->
+      <div class="score-box" id="scoreBox">
+        <span class="score-lbl">Score</span>
+        <span class="score-num" id="scoreVal">0</span>
+      </div>
+
+      <div id="ctrlList"><div class="ctrl-list-title">Tastatursteuerung</div></div>
+      <div class="play-btns">
+        <button class="btn-p" onclick="resetCurrentGame()">⟳ Reset</button>
+        <button class="btn-s" onclick="stopGame()">◀ Zurück</button>
+      </div>
+    </div>
+
+    <!-- Controller Panel -->
+    <div class="ctrl-panel" id="ctrlPanel">
+      <div class="ctrl-panel-lbl">Controller</div>
+
+      <!-- Normal D-Pad (Snake/Pong/Tetris) -->
+      <div id="dpadWrap">
+        <div class="dpad">
+          <button class="db db-u" id="btn-up">▲</button>
+          <button class="db db-l" id="btn-left">◀</button>
+          <button class="db db-r" id="btn-right">▶</button>
+          <button class="db db-d" id="btn-down">▼</button>
+        </div>
+      </div>
+
+      <!-- MADN Panel -->
+      <div class="madn-panel" id="madnPanel" style="display:none">
+        <div class="madn-farben">
+          <div class="madn-farbe-item madn-farbe-blau">BLAU</div>
+          <div class="madn-farbe-item madn-farbe-rot">ROT</div>
+          <div class="madn-farbe-item madn-farbe-gruen">GRÜN</div>
+          <div class="madn-farbe-item madn-farbe-gelb">GELB</div>
+        </div>
+        <div class="madn-status-box">
+          <div class="madn-spieler">Aktueller Spieler</div>
+          <div class="madn-spieler-name" id="madnSpielerName">BLAU</div>
+          <div class="madn-wurf-box" id="madnWurfBox" style="display:none">
+            <div>
+              <div class="madn-wurf-label">Würfel</div>
+            </div>
+            <div class="madn-wurf-zahl" id="madnWurfZahl">—</div>
+          </div>
+          <div class="madn-msg" id="madnMsg">Druecke Wuerfel!</div>
+        </div>
+        <button class="madn-dice-btn" id="madnDiceBtn" onclick="madnWuerfeln()">
+          🎲 WÜRFELN
+        </button>
+
+        <!-- Figurenauswahl — erscheint wenn mehrere Figuren wählbar sind -->
+        <div class="madn-figur-auswahl" id="madnFigurAuswahl">
+          <div class="madn-figur-auswahl-title">Figur wählen</div>
+          <div class="madn-figur-grid">
+            <button class="madn-figur-btn mfb-blau"  id="mfb0" onclick="madnWaehleFigur(0)">Figur 1</button>
+            <button class="madn-figur-btn mfb-rot"   id="mfb1" onclick="madnWaehleFigur(1)">Figur 2</button>
+            <button class="madn-figur-btn mfb-gruen" id="mfb2" onclick="madnWaehleFigur(2)">Figur 3</button>
+            <button class="madn-figur-btn mfb-gelb"  id="mfb3" onclick="madnWaehleFigur(3)">Figur 4</button>
+          </div>
+        </div>
+        <div class="madn-ende-box" id="madnEndeBox" style="display:none">
+          <div class="madn-ende-title">🏆 Spiel beendet!</div>
+          <div class="madn-ende-sub" id="madnEndeMsg"></div>
+        </div>
+      </div>
+
+      <div class="extra-btns" id="extraBtns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── HOW ── -->
+<section class="how-section" id="how">
+  <div class="s-eye">Anleitung</div>
+  <h2 class="s-title">So funktionierts</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div><span class="step-icon">🔌</span>
+      <div class="step-title">ESP32 einschalten</div>
+      <div class="step-desc">ESP32 verbindet sich automatisch mit dem WLAN. Beim ersten Mal öffnet er den Hotspot <code>LumiBoard-Setup</code>.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div><span class="step-icon">🖥</span>
+      <div class="step-title">IP ablesen</div>
+      <div class="step-desc">Das OLED-Display zeigt die IP nach dem Start an. Ohne Display: Serial Monitor in VS Code öffnen.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div><span class="step-icon">⚙</span>
+      <div class="step-title">IP eingeben</div>
+      <div class="step-desc">Oben rechts auf ⚙ klicken, IP eintippen — wird dauerhaft gespeichert.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div><span class="step-icon">🎮</span>
+      <div class="step-title">Spielen</div>
+      <div class="step-desc">Spiel auswählen und losspielen — Snake/Pong/Tetris per Tastatur, MADN per Taster oder Website.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SPECS ── -->
+<section class="specs-section" id="specs">
+  <div class="specs-layout">
+    <div>
+      <div class="s-eye">Hardware</div>
+      <h2 class="s-title">Technische<br>Details</h2>
+      <h3 class="s-title">Projekt-Team</h3>
+      <p style="color:var(--muted);font-size:15px;line-height:1.7;margin-top:20px;max-width:360px">LumiBoard läuft komplett auf dem ESP32. Das OLED zeigt Status und IP direkt an — kein Serial Monitor nötig.</p>
+    </div>
+    <div class="specs-table">
+      <div class="spec-row"><span class="spec-k">Mikrocontroller</span><span class="spec-v">ESP32</span></div>
+      <div class="spec-row"><span class="spec-k">Matrix</span><span class="spec-v">8×8 NeoPixel</span></div>
+      <div class="spec-row"><span class="spec-k">Display</span><span class="spec-v">OLED 0.96" SSD1306</span></div>
+      <div class="spec-row"><span class="spec-k">Touch Sensor</span><span class="spec-v">MPR121</span></div>
+      <div class="spec-row"><span class="spec-k">Headdeveloper</span><span class="spec-v">Temuulen Gantulga</span></div>
+      <div class="spec-row"><span class="spec-k">Software/Game Developer</span><span class="spec-v">Fabio Bruckmoser</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">Lumi<span>Board</span></div>
+  <div class="footer-copy">ESP32 · 8×8 RGB · OLED · Touch</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================
+//  STATE
+// ============================================
+const STORAGE_KEY = 'lumiboard_ip';
+let espIP       = localStorage.getItem(STORAGE_KEY) || '';
+let isConnected = false;
+let currentGame = null;
+let scoreTimer  = null;
+let madnTimer   = null;
+
+function espURL(path) { return 'http://' + espIP + path; }
+async function apiCall(path) {
+  if (!espIP) return false;
+  try { await fetch(espURL(path), {signal: AbortSignal.timeout(3000)}); return true; }
+  catch { return false; }
+}
+
+// ============================================
+//  MATRIX RENDERER
+// ============================================
+function makeRenderer(canvas, size) {
+  const ctx=canvas.getContext('2d'), C=size/8, G=C*.1;
+  const state=Array(64).fill(null).map(()=>[0,0,0]);
+  function render(){
+    ctx.fillStyle='#060805'; ctx.fillRect(0,0,size,size);
+    for(let i=0;i<64;i++){
+      const x=i%8,y=Math.floor(i/8),[r,g,b]=state[i];
+      const px=x*C+G,py=y*C+G,cs=C-G*2,rr=cs*.22;
+      ctx.fillStyle=`rgb(${Math.max(6,Math.floor(r*.1))},${Math.max(6,Math.floor(g*.1))},${Math.max(6,Math.floor(b*.1))})`;
+      ctx.beginPath();ctx.roundRect(px,py,cs,cs,rr);ctx.fill();
+      if(r||g||b){
+        const grd=ctx.createRadialGradient(px+cs*.4,py+cs*.35,0,px+cs/2,py+cs/2,cs*.7);
+        grd.addColorStop(0,`rgba(${r},${g},${b},1)`);
+        grd.addColorStop(1,`rgba(${Math.floor(r*.6)},${Math.floor(g*.6)},${Math.floor(b*.6)},.7)`);
+        ctx.fillStyle=grd;ctx.beginPath();ctx.roundRect(px,py,cs,cs,rr);ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.12)';
+        ctx.beginPath();ctx.ellipse(px+cs*.35,py+cs*.3,cs*.22,cs*.14,-.4,0,Math.PI*2);ctx.fill();
+      }
+    }
+  }
+  return {state,render};
+}
+
+// Hero wave
+const hero=makeRenderer(document.getElementById('matrixCanvas'),200);
+let wT=0,fpsC=0,fpsL=Date.now();
+(function loop(){
+  for(let i=0;i<64;i++){const x=i%8,y=Math.floor(i/8);const v=Math.max(0,Math.sin(wT*.045+x*.95+y*.65)*130+50);hero.state[i]=[Math.floor(v*.04),Math.floor(v),Math.floor(v*.32)];}
+  wT++;hero.render();fpsC++;
+  if(Date.now()-fpsL>=1000){document.getElementById('heroFps').textContent=fpsC;fpsC=0;fpsL=Date.now();}
+  requestAnimationFrame(loop);
+})();
+
+// Previews
+(function(){
+  const sn=makeRenderer(document.getElementById('snakePreview'),96);
+  [{x:3,y:4,c:[0,255,80]},{x:2,y:4,c:[0,90,24]},{x:1,y:4,c:[0,70,18]},{x:0,y:4,c:[0,50,12]}].forEach(s=>sn.state[s.y*8+s.x]=s.c);
+  sn.state[2*8+5]=[255,40,40];sn.state[6*8+2]=[255,40,40];sn.render();
+
+  const pn=makeRenderer(document.getElementById('pongPreview'),96);
+  for(let y=2;y<=5;y++)pn.state[y*8+0]=[0,120,255];
+  for(let y=3;y<=5;y++)pn.state[y*8+7]=[255,80,20];
+  pn.state[4*8+3]=[255,255,255];pn.render();
+
+  const tn=makeRenderer(document.getElementById('tetrisPreview'),96);
+  [[0,7,[255,0,200]],[1,7,[255,0,200]],[2,7,[0,210,255]],[3,7,[0,210,255]],[4,7,[255,140,0]],[5,7,[255,140,0]],[6,7,[255,210,0]],[7,7,[255,210,0]],
+   [0,6,[255,210,0]],[1,6,[255,210,0]],[2,6,[0,190,55]],[5,6,[150,0,255]],[3,3,[0,190,55]],[4,3,[0,190,55]],[3,4,[0,190,55]],[4,4,[0,190,55]]
+  ].forEach(([x,y,c])=>tn.state[y*8+x]=c);tn.render();
+
+  // MADN Preview
+  const mn=makeRenderer(document.getElementById('madnPreview'),96);
+  const dim=1;
+  // Grundpfad weiß
+  [[2,0],[3,0],[4,0],[5,0],[5,1],[5,2],[6,2],[7,2],[7,3],[7,4],[7,5],[6,5],[5,5],[5,6],[5,7],[4,7],[3,7],[2,7],[2,6],[2,5],[1,5],[0,5],[0,4],[0,3],[0,2],[1,2],[2,2],[2,1]].forEach(([x,y])=>mn.state[y*8+x]=[dim,dim,dim]);
+  // Häuser
+  [[6,0],[7,0],[6,1],[7,1]].forEach(([x,y])=>mn.state[y*8+x]=[0,0,10]); // Blau
+  [[6,6],[7,6],[6,7],[7,7]].forEach(([x,y])=>mn.state[y*8+x]=[10,0,0]); // Rot
+  [[0,6],[1,6],[0,7],[1,7]].forEach(([x,y])=>mn.state[y*8+x]=[0,10,0]); // Grün
+  [[0,0],[1,0],[0,1],[1,1]].forEach(([x,y])=>mn.state[y*8+x]=[10,10,0]); // Gelb
+  mn.render();
+
+  // Dino Preview (128×48 px, kein LED-Renderer – eigenes 2D-Canvas)
+  (function(){
+    const c=document.getElementById('dinoPreview');
+    if(!c)return;
+    const ctx=c.getContext('2d');
+    const W=96,H=48,GY=40;
+    let dx=0,dinoY=GY-12,vy=0,jumping=false,frame=0,ft=0;
+    const obs=[{x:80,w:5,h:10},{x:140,w:7,h:13}];
+    let lastT=0;
+    function drawDino(y,fr){
+      ctx.fillStyle='#b8ff35';
+      // body
+      ctx.fillRect(12,y,10,8);
+      // head
+      ctx.fillRect(16,y-5,7,6);
+      // eye
+      ctx.fillStyle='#0d0f0b';ctx.fillRect(21,y-4,2,2);
+      // legs
+      ctx.fillStyle='#b8ff35';
+      if(!jumping){if(fr===0){ctx.fillRect(13,y+8,3,4);ctx.fillRect(17,y+8,3,3);}else{ctx.fillRect(14,y+8,3,3);ctx.fillRect(18,y+8,3,4);}}
+      else{ctx.fillRect(13,y+8,3,3);ctx.fillRect(17,y+8,3,3);}
+    }
+    function raf(t){
+      const dt=Math.min(t-lastT,50);lastT=t;
+      dx+=dt*0.04;
+      // physics
+      if(jumping){vy+=0.018*dt;dinoY+=vy*dt;if(dinoY>=GY-12){dinoY=GY-12;vy=0;jumping=false;}}
+      // anim
+      ft+=dt;if(ft>200){frame=1-frame;ft=0;}
+      // obstacles
+      obs.forEach(o=>{o.x-=dt*0.04;if(o.x+o.w<0)o.x=W+Math.random()*40+20;});
+      ctx.fillStyle='#0d0f0b';ctx.fillRect(0,0,W,H);
+      // ground
+      ctx.strokeStyle='#2e3829';ctx.beginPath();ctx.moveTo(0,GY);ctx.lineTo(W,GY);ctx.stroke();
+      // dots
+      ctx.fillStyle='#2e3829';
+      [15,35,55,75].forEach(x=>{ctx.fillRect((x-dx%W+W)%W,GY+2,3,2);});
+      // obstacles
+      ctx.fillStyle='#6b7a60';
+      obs.forEach(o=>{ctx.fillRect(o.x,GY-o.h,o.w,o.h);});
+      // dino
+      drawDino(Math.round(dinoY),frame);
+      requestAnimationFrame(raf);
+    }
+    // auto-jump
+    setInterval(()=>{if(!jumping&&Math.random()<0.25){jumping=true;vy=-0.38;}},1200);
+    requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(raf);});
+  })();
+
+})(); // end Previews IIFE
+
+// ============================================
+//  MAZE PREVIEW
+// ============================================
+(()=>{
+  const c=document.getElementById('mazePreview');
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  const S=12; // cell size in pixels (8 cells × 12 = 96px)
+  const ROWS=8,COLS=8;
+  // Simple static maze for preview
+  const walls=[ // [r,c,right,down] - 1=wall present
+    [0,0,1,1],[0,1,0,1],[0,2,1,1],[0,3,0,1],[0,4,1,1],[0,5,0,1],[0,6,1,1],[0,7,0,1],
+    [1,0,1,0],[1,1,0,1],[1,2,0,0],[1,3,1,0],[1,4,0,1],[1,5,0,0],[1,6,0,1],[1,7,0,1],
+    [2,0,0,1],[2,1,1,0],[2,2,0,1],[2,3,0,0],[2,4,1,1],[2,5,0,1],[2,6,0,0],[2,7,0,1],
+    [3,0,1,0],[3,1,0,0],[3,2,1,1],[3,3,0,1],[3,4,0,0],[3,5,1,0],[3,6,0,1],[3,7,0,0],
+    [4,0,0,1],[4,1,1,1],[4,2,0,0],[4,3,1,1],[4,4,0,0],[4,5,0,1],[4,6,1,0],[4,7,0,1],
+    [5,0,1,0],[5,1,0,1],[5,2,0,0],[5,3,0,1],[5,4,1,0],[5,5,0,0],[5,6,0,0],[5,7,0,1],
+    [6,0,0,1],[6,1,1,0],[6,2,1,1],[6,3,0,0],[6,4,0,1],[6,5,1,0],[6,6,1,1],[6,7,0,0],
+    [7,0,1,0],[7,1,0,0],[7,2,0,0],[7,3,1,0],[7,4,0,0],[7,5,0,0],[7,6,0,0],[7,7,0,0],
+  ];
+  // Animate player dot
+  let px=0,py=0,tx=7,ty=7,frame=0;
+  const path=[[0,0],[0,1],[0,2],[1,2],[2,2],[2,3],[3,3],[3,4],[4,4],[5,4],[5,5],[6,5],[6,6],[7,6],[7,7]];
+  let pi=0;
+  function draw(){
+    ctx.fillStyle='#04060f';ctx.fillRect(0,0,96,96);
+    // grid walls
+    ctx.strokeStyle='#1a2240';ctx.lineWidth=1;
+    walls.forEach(([r,c,right,down])=>{
+      const x=c*S,y=r*S;
+      if(right){ctx.beginPath();ctx.moveTo(x+S,y);ctx.lineTo(x+S,y+S);ctx.stroke();}
+      if(down) {ctx.beginPath();ctx.moveTo(x,y+S);ctx.lineTo(x+S,y+S);ctx.stroke();}
+    });
+    // outer border
+    ctx.strokeStyle='#35b8ff';ctx.lineWidth=1.5;ctx.strokeRect(0,0,96,96);
+    // exit
+    ctx.fillStyle='#b8ff35';ctx.fillRect(tx*S+2,ty*S+2,S-4,S-4);
+    // player
+    const [pr,pc]=path[pi];
+    ctx.fillStyle='#35b8ff';ctx.beginPath();ctx.arc(pc*S+S/2,pr*S+S/2,4,0,Math.PI*2);ctx.fill();
+    frame++;
+    if(frame%18===0){pi=(pi+1)%path.length;}
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+
+function setUI(state) {
+  const pill=document.getElementById('statusPill'),txt=document.getElementById('statusTxt');
+  const banner=document.getElementById('banner'),bTxt=document.getElementById('bannerTxt');
+  const bSpin=document.getElementById('bannerSpinner'),bAct=document.getElementById('bannerAction');
+  banner.className='banner';bSpin.style.display='none';bAct.style.display='none';
+  if(state==='noip'){
+    pill.className='status-pill offline';txt.textContent='Keine IP';
+    banner.classList.add('noip');bTxt.textContent='Keine IP gespeichert — klicke auf ⚙';bAct.style.display='inline';
+  }else if(state==='checking'){
+    pill.className='status-pill checking';txt.textContent='Verbinde…';
+    banner.classList.add('checking');bSpin.style.display='block';bTxt.textContent='Verbinde mit '+espIP+'…';
+  }else if(state==='online'){
+    pill.className='status-pill online';txt.textContent=espIP;
+    ['snake','pong','tetris','madn','dino','maze'].forEach(g=>document.getElementById('card-'+g).classList.remove('locked'));
+  }else if(state==='offline'){
+    pill.className='status-pill offline';txt.textContent='Offline';
+    banner.classList.add('offline');bTxt.textContent=espIP+' nicht erreichbar — ESP32 eingeschaltet?';
+    bAct.style.display='inline';bAct.textContent='IP ändern →';
+    ['snake','pong','tetris','madn','dino','maze'].forEach(g=>document.getElementById('card-'+g).classList.add('locked'));
+  }
+}
+
+async function checkConnection() {
+  if(!espIP){setUI('noip');return;}
+  setUI('checking');
+  try{
+    const res=await fetch(espURL('/status'),{signal:AbortSignal.timeout(3000)});
+    if(res.ok){if(!isConnected){isConnected=true;showToast('LumiBoard verbunden! ✓');}setUI('online');}
+    else throw new Error();
+  }catch{
+    if(isConnected){isConnected=false;showToast('Verbindung verloren','warn');if(currentGame)stopGame();}
+    isConnected=false;setUI('offline');
+  }
+}
+checkConnection();
+setInterval(checkConnection,5000);
+
+// ============================================
+//  DRAWER
+// ============================================
+function openDrawer(){
+  if(espIP){document.getElementById('savedBlock').style.display='block';document.getElementById('savedIpVal').textContent=espIP;}
+  else document.getElementById('savedBlock').style.display='none';
+  document.getElementById('ipInput').value='';
+  document.getElementById('dStatus').textContent='';document.getElementById('dStatus').className='d-status';
+  document.getElementById('drawerBg').classList.add('open');
+  setTimeout(()=>document.getElementById('ipInput').focus(),300);
+}
+function closeDrawer(){document.getElementById('drawerBg').classList.remove('open');}
+document.getElementById('ipInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveAndConnect();});
+
+async function saveAndConnect(){
+  const val=document.getElementById('ipInput').value.trim().replace(/^https?:\/\//,'').replace(/\/$/,'');
+  if(!val){setDStatus('Bitte IP eingeben','err');return;}
+  setDStatus('Verbinde mit '+val+'…','checking');
+  try{
+    const res=await fetch('http://'+val+'/status',{signal:AbortSignal.timeout(3000)});
+    if(res.ok){
+      espIP=val;localStorage.setItem(STORAGE_KEY,val);isConnected=true;
+      setDStatus('✓ Verbunden!','ok');
+      document.getElementById('savedBlock').style.display='block';
+      document.getElementById('savedIpVal').textContent=val;
+      setUI('online');showToast('LumiBoard verbunden! ✓');
+      setTimeout(closeDrawer,900);
+    }else throw new Error('bad');
+  }catch(err){
+    if(location.protocol==='https:' && err instanceof TypeError){
+      document.getElementById('dStatus').className='d-status err';
+      document.getElementById('dStatus').innerHTML=
+        '<span>✗ Browser blockiert HTTP-Verbindung (Mixed Content).</span><br>'+
+        '<span style="font-size:11px;color:var(--muted)">Öffne die Seite über '+
+        '<a href="http://'+location.hostname+'" style="color:var(--lime);text-decoration:underline">'+
+        'http://'+location.hostname+'</a> statt https — dann funktioniert es auf dem Handy!</span>';
+    } else {
+      setDStatus('✗ Keine Verbindung — ESP32 an und im selben Netz?','err');
+    }
+  }
+}
+function clearIP(){
+  espIP='';localStorage.removeItem(STORAGE_KEY);isConnected=false;
+  document.getElementById('savedBlock').style.display='none';
+  setUI('noip');setDStatus('IP gelöscht','ok');if(currentGame)stopGame();
+}
+function setDStatus(msg,cls){const el=document.getElementById('dStatus');el.textContent=msg;el.className='d-status '+cls;}
+
+// ============================================
+//  GAME DATA
+// ============================================
+const GAMES={
+  snake:{name:'Snake',desc:'Steuere die Schlange mit den Pfeiltasten. Fresse das rote Futter ohne dich selbst zu beißen.',
+    controls:[{keys:['↑','↓','←','→'],lbl:'Schlange steuern'},{keys:['R'],lbl:'Reset'}],
+    dpad:{up:'UP',down:'DOWN',left:'LEFT',right:'RIGHT'},
+    keyboard:{ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT'},extras:[]},
+  pong:{name:'Pong',desc:'Bewege dein Paddle (links, blau) mit W/S. Die KI versucht zu gewinnen. Erster mit 5 Punkten gewinnt.',
+    controls:[{keys:['W'],lbl:'Paddle hoch'},{keys:['S'],lbl:'Paddle runter'},{keys:['R'],lbl:'Reset'}],
+    dpad:{up:'UP',down:'DOWN',left:null,right:null},
+    keyboard:{w:'UP',s:'DOWN',W:'UP',S:'DOWN'},extras:[]},
+  tetris:{name:'Tetris',desc:'Bewege Blöcke mit ← →, rotiere mit ↑, schneller mit ↓. Space = Hard Drop. Fülle Reihen!',
+    controls:[{keys:['←','→'],lbl:'Bewegen'},{keys:['↑'],lbl:'Rotieren'},{keys:['↓'],lbl:'Schneller'},{keys:['Space'],lbl:'Hard Drop'},{keys:['R'],lbl:'Reset'}],
+    dpad:{up:'ROTATE',down:'DOWN',left:'LEFT',right:'RIGHT'},
+    keyboard:{ArrowLeft:'LEFT',ArrowRight:'RIGHT',ArrowDown:'DOWN',ArrowUp:'ROTATE'},
+    extras:[{label:'▼▼  HARD DROP',cmd:'DROP'}]},
+  madn:{name:'Mensch ärgere dich nicht',desc:'Klassisches Brettspiel auf der 8×8 Matrix. Blau → Rot → Grün → Gelb. Würfeln per Taster oder Würfel-Button. Wer zuerst alle 4 Figuren ins Ziel bringt, gewinnt!',
+    controls:[{keys:['Taster'],lbl:'Würfeln'},{keys:['Button'],lbl:'Würfeln (Website)'},{keys:['R'],lbl:'Neu starten'}],
+    dpad:{up:null,down:null,left:null,right:null},
+    keyboard:{},extras:[]},
+  dino:{name:'Dino Run',desc:'Spring mit dem T-Rex über Kakteen — läuft direkt auf dem OLED. Ein Taster oder Space zum Springen. Nach Game Over: erneut drücken zum Neustart.',
+    controls:[{keys:['Space'],lbl:'Springen'},{keys:['Taster'],lbl:'Springen (Hardware)'},{keys:['R'],lbl:'Reset'}],
+    dpad:{up:null,down:null,left:null,right:null},
+    keyboard:{' ':'JUMP'},extras:[{label:'🦕  SPRINGEN',cmd:'JUMP'}]},
+  maze:{name:'Maze',desc:'Finde den Ausgang im zufällig generierten Labyrinth auf der 8×8 Matrix. Steuere deinen Spieler mit den Pfeiltasten. Jedes Spiel ein neues Labyrinth!',
+    controls:[{keys:['↑','↓','←','→'],lbl:'Spieler steuern'},{keys:['R'],lbl:'Neues Labyrinth'}],
+    dpad:{up:'UP',down:'DOWN',left:'LEFT',right:'RIGHT'},
+    keyboard:{ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT'},extras:[]},
+};
+
+// ============================================
+//  MADN STATUS POLLING
+// ============================================
+async function pollMADN(){
+  if(currentGame!=='madn')return;
+  try{
+    const r=await fetch(espURL('/madn'),{signal:AbortSignal.timeout(2000)});
+    const d=await r.json();
+    // Spielername + Farbe
+    const nameEl=document.getElementById('madnSpielerName');
+    nameEl.textContent=d.spieler;
+    nameEl.className='madn-spieler-name '+(d.spieler||'').toLowerCase().replace('gruen','gruen');
+    // Würfelzahl
+    const wurfBox=document.getElementById('madnWurfBox');
+    const wurfZahl=document.getElementById('madnWurfZahl');
+    if(d.wurf>0){wurfBox.style.display='flex';wurfZahl.textContent=d.wurf;}
+    else{wurfBox.style.display='none';}
+    // Nachricht
+    document.getElementById('madnMsg').textContent=d.msg||'';
+    // Würfel-Button
+    const btn=document.getElementById('madnDiceBtn');
+    btn.disabled=(!d.wartet&&!d.wahlAktiv)||d.ende;
+    btn.textContent=d.wartet&&!d.ende?'🎲 WÜRFELN':d.wahlAktiv?'✓ Bestätigen (Taster)':'⏳ Zug läuft…';
+    btn.style.display=d.ende?'none':'';
+    // Figurenauswahl-Panel
+    const auswahlBox=document.getElementById('madnFigurAuswahl');
+    if(d.wahlAktiv&&!d.ende){
+      auswahlBox.classList.add('aktiv');
+      // Figur-Buttons (0..3) aktivieren je nach kannBewegen
+      const labels=['Figur 1','Figur 2','Figur 3','Figur 4'];
+      for(let i=0;i<4;i++){
+        const b=document.getElementById('mfb'+i);
+        b.textContent=labels[i];
+        if(d.kannBewegen&&d.kannBewegen[i]){b.classList.add('waehlbar');}
+        else{b.classList.remove('waehlbar');}
+      }
+    } else {
+      auswahlBox.classList.remove('aktiv');
+    }
+    // Spielende
+    if(d.ende){
+      document.getElementById('madnEndeBox').style.display='block';
+      document.getElementById('madnEndeMsg').textContent=d.msg;
+      auswahlBox.classList.remove('aktiv');
+    }
+  }catch(e){}
+}
+
+function madnWuerfeln(){
+  apiCall('/input?cmd=WUERFELN');
+  document.getElementById('madnDiceBtn').disabled=true;
+  document.getElementById('madnDiceBtn').textContent='⏳ Zug läuft…';
+  setTimeout(pollMADN,500);
+}
+
+function madnWaehleFigur(idx){
+  apiCall('/madn/figur?idx='+idx);
+  document.getElementById('madnFigurAuswahl').classList.remove('aktiv');
+  document.getElementById('madnDiceBtn').textContent='⏳ Zug läuft…';
+  setTimeout(pollMADN,400);
+}
+
+// ============================================
+//  GAME CONTROLLER
+// ============================================
+function launchGame(game){
+  if(!isConnected){showToast('ESP32 nicht verbunden!','warn');openDrawer();return;}
+  currentGame=game;const G=GAMES[game];
+  apiCall('/start?game='+game);
+
+  document.getElementById('playSection').classList.add('visible');
+  setTimeout(()=>document.getElementById('playSection').scrollIntoView({behavior:'smooth',block:'start'}),50);
+
+  document.getElementById('playTitle').textContent=G.name;
+  document.getElementById('playDesc').textContent=G.desc;
+
+  // Score Box — nur bei nicht-MADN zeigen
+  document.getElementById('scoreBox').style.display=game==='madn'?'none':'inline-flex';
+  document.getElementById('scoreVal').textContent='0';
+
+  // D-Pad vs MADN Panel
+  document.getElementById('dpadWrap').style.display=game==='madn'?'none':'block';
+  document.getElementById('madnPanel').style.display=game==='madn'?'flex':'none';
+
+  // MADN reset UI
+  if(game==='madn'){
+    document.getElementById('madnEndeBox').style.display='none';
+    document.getElementById('madnDiceBtn').style.display='';
+    document.getElementById('madnWurfBox').style.display='none';
+    document.getElementById('madnDiceBtn').disabled=false;
+    document.getElementById('madnDiceBtn').textContent='🎲 WÜRFELN';
+    document.getElementById('madnFigurAuswahl').classList.remove('aktiv');
+    madnTimer=setInterval(pollMADN,1000);
+    pollMADN();
+  }
+
+  // Controls list
+  const cl=document.getElementById('ctrlList');
+  cl.innerHTML='<div class="ctrl-list-title">Steuerung</div>';
+  G.controls.forEach(c=>{
+    const row=document.createElement('div');row.className='ctrl-row';
+    c.keys.forEach(k=>{const s=document.createElement('span');s.className='key';s.textContent=k;row.appendChild(s);});
+    const l=document.createElement('span');l.className='key-lbl';l.textContent=c.lbl;row.appendChild(l);
+    cl.appendChild(row);
+  });
+
+  // D-Pad buttons
+  ['up','down','left','right'].forEach(dir=>{
+    const btn=document.getElementById('btn-'+dir),cmd=G.dpad[dir];
+    btn.style.visibility=cmd?'visible':'hidden';
+    btn.onclick=cmd?()=>{apiCall('/input?cmd='+cmd);press(btn);}:null;
+  });
+
+  // Extra buttons
+  const eb=document.getElementById('extraBtns');eb.innerHTML='';
+  G.extras.forEach(e=>{
+    const b=document.createElement('button');b.className='xbtn';b.textContent=e.label;
+    // Dino Sprung nutzt /dino statt /input?cmd=
+    if(game==='dino'&&e.cmd==='JUMP'){b.onclick=()=>{apiCall('/dino');press(b);};}
+    else{b.onclick=()=>apiCall('/input?cmd='+e.cmd);}
+    eb.appendChild(b);
+  });
+  [{lbl:'⟳  Reset',fn:resetCurrentGame,cls:'xbtn'},{lbl:'◀  Zurück',fn:stopGame,cls:'xbtn danger'}].forEach(({lbl,fn,cls})=>{
+    const b=document.createElement('button');b.className=cls;b.textContent=lbl;b.onclick=fn;eb.appendChild(b);
+  });
+
+  // Score polling
+  clearInterval(scoreTimer);
+  if(game!=='madn'){
+    scoreTimer=setInterval(async()=>{
+      try{const r=await fetch(espURL('/score'),{signal:AbortSignal.timeout(1500)});const d=await r.json();document.getElementById('scoreVal').textContent=d.score??0;}catch(e){}
+    },600);
+  }
+  showToast(G.name+' gestartet!');
+}
+
+function press(btn){btn.classList.add('pressed');setTimeout(()=>btn.classList.remove('pressed'),130);}
+
+function resetCurrentGame(){
+  apiCall('/reset');
+  document.getElementById('scoreVal').textContent='0';
+  if(currentGame==='madn'){
+    document.getElementById('madnEndeBox').style.display='none';
+    document.getElementById('madnDiceBtn').style.display='';
+    document.getElementById('madnDiceBtn').disabled=false;
+    document.getElementById('madnDiceBtn').textContent='🎲 WÜRFELN';
+    document.getElementById('madnWurfBox').style.display='none';
+    document.getElementById('madnFigurAuswahl').classList.remove('aktiv');
+    pollMADN();
+  }
+  showToast('Reset!');
+}
+
+function stopGame(){
+  clearInterval(scoreTimer);
+  clearInterval(madnTimer);
+  currentGame=null;
+  apiCall('/menu');
+  document.getElementById('playSection').classList.remove('visible');
+  document.getElementById('games').scrollIntoView({behavior:'smooth'});
+}
+
+document.addEventListener('keydown',e=>{
+  if(!currentGame||currentGame==='madn')return;
+  // Dino: Leertaste → Sprung direkt über /dino
+  if(currentGame==='dino'){
+    if(e.key===' '||e.key==='ArrowUp'){apiCall('/dino');e.preventDefault();}
+    if(e.key==='r'||e.key==='R')resetCurrentGame();
+    return;
+  }
+  const G=GAMES[currentGame],cmd=G.keyboard[e.key];
+  if(cmd){apiCall('/input?cmd='+cmd);const m={UP:'up',DOWN:'down',LEFT:'left',RIGHT:'right',ROTATE:'up'};const b=document.getElementById('btn-'+m[cmd]);if(b)press(b);e.preventDefault();}
+  if(e.key===' '&&currentGame==='tetris'){apiCall('/input?cmd=DROP');e.preventDefault();}
+  if(e.key==='r'||e.key==='R')resetCurrentGame();
+});
+
+function showToast(msg,cls=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(cls?' '+cls:'')+' show';setTimeout(()=>t.classList.remove('show'),2800);}
+
+if(espIP){document.getElementById('savedBlock').style.display='block';document.getElementById('savedIpVal').textContent=espIP;}
+</script>
+</body>
+</html>
